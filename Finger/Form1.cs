@@ -36,7 +36,7 @@ namespace Finger
         private int mfpWidth = 0;
         private int mfpHeight = 0;
         int RegisterCount = 0;
-
+        string loadchk;
         const int MESSAGE_CAPTURED_OK = 0x0400 + 6;
         #endregion
 
@@ -111,19 +111,23 @@ namespace Finger
 
             StreamReader sr = new StreamReader(@"D:\Fingers.txt");
             int x = 0;
-            while (sr.ReadLine() != null)
+            string finger;
+            while (((finger = sr.ReadLine()) != null))
             {
-                x++;
-                string finger = sr.ReadLine();
-                RegTmps[x] = Convert.FromBase64String(finger);                    
-                if (x==3)
+                if ((finger != null) && (finger != ""))
                 {
-                    x = 0;
-                    iFid += 1;
-                    GenerateRegisteredFingerPrint();
-                    AddTemplateToMemory();
-                }       
-
+                    RegTmps[x] = Convert.FromBase64String(finger);
+                    if (x == 2)
+                    {
+                        x = 0;
+                        iFid += 1;
+                        loadchk = "Y";
+                        GenerateRegisteredFingerPrint();
+                        AddTemplateToMemory();
+                        loadchk = "N";
+                    }
+                    x++;
+                }
             }
             sr.Close();
         }
@@ -216,13 +220,13 @@ namespace Finger
                                     }
                                     else
                                     {
-                                        label1.Text = "Failed to add the users template";
+                                        label1.Text = "Failed to add the users template " + ret;
                                         label1.BackColor = Color.Tomato;
                                     }
                                 }
                                 else
                                 {
-                                    label1.Text = "Unable to enroll the current user.";
+                                    label1.Text = "Unable to enroll the current user. " + ret;
                                     label1.BackColor = Color.Tomato;
                                 }
 
@@ -232,7 +236,8 @@ namespace Finger
                             else
                             {
                                 int remainingCont = REGISTER_FINGER_COUNT - RegisterCount;
-                                label1.Text = "Please provide your fingerprint " + remainingCont + " more time(s)";                                
+                                label1.Text = "Please provide your fingerprint " + remainingCont + " more time(s)";
+                                label1.BackColor = Color.LightBlue;
                             }
                             #endregion
                         }
@@ -255,7 +260,7 @@ namespace Finger
                                 ret = fpr.Identify(CapTmp, ref fid, ref score);
                                 if (zkfp.ZKFP_ERR_OK == ret)
                                 {
-                                    label1.Text = "User Validated. Score: " + ret + "ID: " + iFid;
+                                    label1.Text = "User Validated. Score: " + score + "ID: " + iFid;
                                     label1.BackColor = Color.Lime;
                                     return;
                                 }
@@ -362,14 +367,17 @@ namespace Finger
 
         private int GenerateRegisteredFingerPrint()
         {
-            string img1 = Convert.ToBase64String(RegTmps[0]);
-            string img2 =Convert.ToBase64String(RegTmps[1]);
-            string img3 = Convert.ToBase64String(RegTmps[2]);
-            StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
-            sw.WriteLine(img1);
-            sw.WriteLine(img2);
-            sw.WriteLine(img3);
-            sw.Close();
+            if (loadchk != "Y")
+            {
+                string img1 = Convert.ToBase64String(RegTmps[0]);
+                string img2 = Convert.ToBase64String(RegTmps[1]);
+                string img3 = Convert.ToBase64String(RegTmps[2]);
+                StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
+                sw.WriteLine(img1);
+                sw.WriteLine(img2);
+                sw.WriteLine(img3);
+                sw.Close();
+            }
             return fpr.GenerateRegTemplate(RegTmps[0], RegTmps[1], RegTmps[2], RegTmp, ref regTempLen);
         }
 
@@ -385,7 +393,11 @@ namespace Finger
             WriteBitmap(FPBuffer, mfpWidth, mfpHeight);
             Bitmap bmp = new Bitmap(ms);
             this.picFPImg.Image = bmp;
-           // string finger = ;
+
+            Image img = bmp;
+            img.Save(@"D:\finger.bmp", System.Drawing.Imaging.ImageFormat.Bmp) ;
+            FileInfo img1 = new FileInfo(@"D:\finger.bmp");
+            // string finger = ;
         }
 
         public struct BITMAPFILEHEADER
@@ -524,7 +536,7 @@ namespace Finger
                 BmpHeader.bfReserved2 = 0;
 
                 ms.Write(StructToBytes(BmpHeader, 14), 0, 14);
-                ms.Write(StructToBytes(BmpInfoHeader, Marshal.SizeOf(BmpInfoHeader)), 0, Marshal.SizeOf(BmpInfoHeader));
+                ms.Write(StructToBytes(BmpInfoHeader, Marshal.SizeOf(BmpInfoHeader)), 0, Marshal.SizeOf(BmpInfoHeader));                
 
                 //µ÷ÊÔ°åÐÅÏ¢
                 for (ColorIndex = 0; ColorIndex < m_nColorTableEntries; ColorIndex++)
@@ -596,7 +608,7 @@ namespace Finger
                 BmpHeader.bfReserved2 = 0;
 
                 Stream FileStream = File.Open("finger.bmp", FileMode.Create, FileAccess.Write);
-                BinaryWriter TmpBinaryWriter = new BinaryWriter(FileStream);
+                BinaryWriter TmpBinaryWriter = new BinaryWriter(FileStream);                
 
                 TmpBinaryWriter.Write(StructToBytes(BmpHeader, 14));
                 TmpBinaryWriter.Write(StructToBytes(BmpInfoHeader, Marshal.SizeOf(BmpInfoHeader)));
