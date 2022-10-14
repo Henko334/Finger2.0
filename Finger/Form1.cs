@@ -36,7 +36,6 @@ namespace Finger
         private int mfpWidth = 0;
         private int mfpHeight = 0;
         int RegisterCount = 0;
-        string loadchk;
         const int MESSAGE_CAPTURED_OK = 0x0400 + 6;
         #endregion
 
@@ -50,6 +49,7 @@ namespace Finger
         {
             if (!IsRegister)
             {
+                iFid +=1;
                 IsRegister = true;
                 RegisterCount = 0;
                 regTempLen = 0;
@@ -119,14 +119,15 @@ namespace Finger
                     RegTmps[x] = Convert.FromBase64String(finger);
                     if (x == 2)
                     {
-                        x = 0;
-                        iFid += 1;
-                        loadchk = "Y";
+                        x = 0;                        
                         GenerateRegisteredFingerPrint();
                         AddTemplateToMemory();
-                        loadchk = "N";
+                        iFid += 1;
                     }
-                    x++;
+                    else
+                    {
+                        x++;
+                    }                    
                 }
             }
             sr.Close();
@@ -200,11 +201,11 @@ namespace Finger
 
                                 RegisterCount = 0;
                                 ret = GenerateRegisteredFingerPrint();   // <--- GENERATE FINGERPRINT TEMPLATE
-                                string reg = "";
-                                reg = Convert.ToBase64String(RegTmp);
-                                StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
-                                sw.WriteLine(reg + Environment.NewLine);
-                                sw.Close();
+                                //string reg = "";
+                                //reg = Convert.ToBase64String(RegTmp);
+                                //StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
+                                //sw.WriteLine(reg + Environment.NewLine);
+                                //sw.Close();
 
                                 if (zkfp.ZKFP_ERR_OK == ret)
                                 {
@@ -217,6 +218,16 @@ namespace Finger
 
                                         label1.Text = "You have successfully enrolled the user";
                                         label1.BackColor = Color.Lime;
+                                        string img1 = Convert.ToBase64String(RegTmps[0]);
+                                        string img2 = Convert.ToBase64String(RegTmps[1]);
+                                        string img3 = Convert.ToBase64String(RegTmps[2]);
+                                        StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
+                                        sw.WriteLine(img1);
+                                        sw.WriteLine(img2);
+                                        sw.WriteLine(img3);
+                                        sw.WriteLine(Environment.NewLine);
+                                        sw.Close();
+                                        iFid += 1;
                                     }
                                     else
                                     {
@@ -260,7 +271,7 @@ namespace Finger
                                 ret = fpr.Identify(CapTmp, ref fid, ref score);
                                 if (zkfp.ZKFP_ERR_OK == ret)
                                 {
-                                    label1.Text = "User Validated. Score: " + score + "ID: " + iFid;
+                                    label1.Text = "User Validated. Score: " + score + "ID: " + fid;
                                     label1.BackColor = Color.Lime;
                                     return;
                                 }
@@ -276,7 +287,7 @@ namespace Finger
                                 int ret = fpr.Match(CapTmp, RegTmp);
                                 if (0 < ret)
                                 {
-                                    label1.Text = "Match Successfull. Score: " + iFid;
+                                    label1.Text = "Match Successfull. Score: " + ret;
                                     label1.BackColor = Color.Tomato;
                                     return;
                                 }
@@ -366,23 +377,12 @@ namespace Finger
         }
 
         private int GenerateRegisteredFingerPrint()
-        {
-            if (loadchk != "Y")
-            {
-                string img1 = Convert.ToBase64String(RegTmps[0]);
-                string img2 = Convert.ToBase64String(RegTmps[1]);
-                string img3 = Convert.ToBase64String(RegTmps[2]);
-                StreamWriter sw = new StreamWriter(@"D:\Fingers.txt", true);
-                sw.WriteLine(img1);
-                sw.WriteLine(img2);
-                sw.WriteLine(img3);
-                sw.Close();
-            }
+        {            
             return fpr.GenerateRegTemplate(RegTmps[0], RegTmps[1], RegTmps[2], RegTmp, ref regTempLen);
         }
 
         private int AddTemplateToMemory()
-        {
+        {            
             return fpr.AddRegTemplate(iFid, RegTmp);
         }
 
