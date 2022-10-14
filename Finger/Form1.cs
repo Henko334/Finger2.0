@@ -7,10 +7,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows;
 using System.Threading;
 using System.IO;
 using libzkfpcsharp;
 using System.Runtime.InteropServices;
+using System.Timers;
 
 namespace Finger
 {
@@ -33,23 +35,39 @@ namespace Finger
         int cbCapTmp = 2048;
         int regTempLen = 0;
         int iFid = 1;
+        int ucnt =0;
+        int timer = 0;
         private int mfpWidth = 0;
         private int mfpHeight = 0;
         int RegisterCount = 0;
         const int MESSAGE_CAPTURED_OK = 0x0400 + 6;
+
         #endregion
 
         public Form1()
         {
             InitializeComponent();
             InitDevice();
+            timer1.Interval = 5000;
+            
+        }
+
+        public void OnTimedEvent(object sender, EventArgs e)
+        {
+            TimerClear();
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
+            if (textBox1.Text == "")
+            {
+                MessageBox.Show("No User Id Entered");
+                return;
+            }
             if (!IsRegister)
             {
-                iFid +=1;
+
+                iFid = Convert.ToInt32(textBox1.Text);
                 IsRegister = true;
                 RegisterCount = 0;
                 regTempLen = 0;
@@ -100,7 +118,7 @@ namespace Finger
                 captureThread.Start();
                 bIsTimeToDie = false;
                 string devSN = fpr.devSn;
-                label1.Text = "Device Connected";
+                label1.Text = "Device Connected ";
                 label1.BackColor = Color.Lime;
             }
             else
@@ -116,13 +134,17 @@ namespace Finger
             {
                 if ((finger != null) && (finger != ""))
                 {
-                    RegTmps[x] = Convert.FromBase64String(finger);
-                    if (x == 2)
+                    if (x < 3)
                     {
-                        x = 0;                        
+                        RegTmps[x] = Convert.FromBase64String(finger);
+                    }
+                    if (x == 3)
+                    {
+                        x = 0;
+                        iFid = Convert.ToInt32(finger);
                         GenerateRegisteredFingerPrint();
                         AddTemplateToMemory();
-                        iFid += 1;
+                        ucnt += 1;
                     }
                     else
                     {
@@ -131,6 +153,10 @@ namespace Finger
                 }
             }
             sr.Close();
+            if (zkfp.ZKFP_ERR_OK == callBackCode)
+            {
+                label1.Text = "Device Connected: " + ucnt + " Users Loaded";
+            }
         }
 
         [DllImport("user32.dll", EntryPoint = "SendMessageA")]
@@ -170,7 +196,9 @@ namespace Finger
                 case MESSAGE_CAPTURED_OK:
                     {
                         DisplayFingerPrintImage();
-
+                        timer1.Dispose();
+                        timer1.Start();
+                        timer1.Tick += new EventHandler(OnTimedEvent);
                         if (IsRegister)
                         {
                             #region -------- IF REGISTERED FINGERPRINT --------
@@ -225,9 +253,9 @@ namespace Finger
                                         sw.WriteLine(img1);
                                         sw.WriteLine(img2);
                                         sw.WriteLine(img3);
+                                        sw.WriteLine(iFid);
                                         sw.WriteLine(Environment.NewLine);
-                                        sw.Close();
-                                        iFid += 1;
+                                        sw.Close();                                        
                                     }
                                     else
                                     {
@@ -329,28 +357,31 @@ namespace Finger
             Thread.Sleep(1000);
             int result = fpr.CloseDevice();
 
-            captureThread.Abort();
-            if (result == zkfp.ZKFP_ERR_OK)
+            if (fpr.GetDeviceCount() > 0)
             {
-                Thread.Sleep(1000);
-                result = fpr.Finalize();   // CLEAR RESOURCES
-
+                captureThread.Abort();
                 if (result == zkfp.ZKFP_ERR_OK)
                 {
-                    regTempLen = 0;
-                    IsRegister = false;
+                    Thread.Sleep(1000);
+                    result = fpr.Finalize();   // CLEAR RESOURCES
 
-                    Cursor = Cursors.Default;
+                    if (result == zkfp.ZKFP_ERR_OK)
+                    {
+                        regTempLen = 0;
+                        IsRegister = false;
+
+                        Cursor = Cursors.Default;
+                    }
+                    else
+                    {
+                        Cursor = Cursors.Default;
+                        label1.Text = "Error Disconnecting the Device " + iFid;
+                        label1.BackColor = Color.Red;
+                    }
                 }
-                else
-                {
-                    Cursor = Cursors.Default;
-                    label1.Text = "Error Disconnecting the Device " + iFid;
-                    label1.BackColor = Color.Red;
-                }
+                label1.Text = "Device Disconnected";
+                label1.BackColor = Color.Tomato;
             }
-            label1.Text = "Device Disconnected";
-            label1.BackColor = Color.Tomato;
             Cursor = Cursors.Default;
         }
 
@@ -374,6 +405,22 @@ namespace Finger
         {
             picFPImg.Image = null;
             //pbxImage2.Image = null;
+        }
+
+        private void TimerClear()
+        {
+            timer1.Dispose();
+            if (fpr.GetDeviceCount() > 0)
+            {
+                label1.Text = "Device Connected";
+                label1.BackColor = Color.Lime;
+            }
+            else
+            {
+                label1.Text = " No Device Connected";
+                label1.BackColor = Color.Tomato;
+            }
+            timer1.Start();
         }
 
         private int GenerateRegisteredFingerPrint()
@@ -664,5 +711,6 @@ namespace Finger
             RegTmp = new byte[2048];
             sr.Close();
         }
+        
     }
 }
