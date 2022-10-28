@@ -1,17 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using libzkfpcsharp;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Forms;
+using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Windows;
-using System.Threading;
-using System.IO;
-using libzkfpcsharp;
-using System.Runtime.InteropServices;
 using System.Timers;
 
 namespace Finger
@@ -35,13 +35,14 @@ namespace Finger
         int cbCapTmp = 2048;
         int regTempLen = 0;
         int iFid = 1;
-        int ucnt =0;
+        int ucnt = 0;
         int timer = 0;
         private int mfpWidth = 0;
         private int mfpHeight = 0;
         int RegisterCount = 0;
         const int MESSAGE_CAPTURED_OK = 0x0400 + 6;
-
+        Enroll enroll = new Enroll();
+        Bitmap bmp;
         #endregion
 
         public Form1()
@@ -49,30 +50,12 @@ namespace Finger
             InitializeComponent();
             InitDevice();
             timer1.Interval = 5000;
-            
+            this.WindowState = FormWindowState.Maximized;
         }
 
         public void OnTimedEvent(object sender, EventArgs e)
         {
             TimerClear();
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (textBox1.Text == "")
-            {
-                MessageBox.Show("No User Id Entered");
-                return;
-            }
-            if (!IsRegister)
-            {
-
-                iFid = Convert.ToInt32(textBox1.Text);
-                IsRegister = true;
-                RegisterCount = 0;
-                regTempLen = 0;
-                label1.Text = "Please press your finger 3 times!";
-            }
         }
 
         public void InitDevice()
@@ -84,14 +67,14 @@ namespace Finger
                 if (nCount == 0)
                 {
                     label1.Text = "Uable to connect with the device!";
-                    label1.BackColor = Color.Tomato;
+                    label1.BackColor = Color.FromArgb(231, 76, 60);
                     return;
                 }
                 int openDeviceCallBackCode = fpr.OpenDevice(0);
                 if (zkfp.ZKFP_ERR_OK != openDeviceCallBackCode)
                 {
                     label1.Text = "Uable to connect with the device!";
-                    label1.BackColor = Color.Tomato;
+                    label1.BackColor = Color.FromArgb(231, 76, 60);
                     return;
                 }
 
@@ -119,12 +102,12 @@ namespace Finger
                 bIsTimeToDie = false;
                 string devSN = fpr.devSn;
                 label1.Text = "Device Connected ";
-                label1.BackColor = Color.Lime;
+                label1.BackColor = Color.FromArgb(46,204,113);
             }
             else
             {
                 label1.Text = "Could Not Connect to Device";
-                label1.BackColor = Color.Tomato;
+                label1.BackColor = Color.FromArgb(231, 76, 60);
             }
 
             StreamReader sr = new StreamReader(@"D:\Fingers.txt");
@@ -149,7 +132,7 @@ namespace Finger
                     else
                     {
                         x++;
-                    }                    
+                    }
                 }
             }
             sr.Close();
@@ -195,7 +178,8 @@ namespace Finger
             {
                 case MESSAGE_CAPTURED_OK:
                     {
-                        DisplayFingerPrintImage();
+                        DisplayFinger displayFinger = new DisplayFinger(mfpWidth, mfpHeight, FPBuffer);
+                        this.picFPImg.Image = displayFinger.DisplayFingerPrintImage();
                         timer1.Dispose();
                         timer1.Start();
                         timer1.Tick += new EventHandler(OnTimedEvent);
@@ -245,7 +229,7 @@ namespace Finger
                                         zkfp.Blob2Base64String(RegTmp, regTempLen, ref fingerPrintTemplate);
 
                                         label1.Text = "You have successfully enrolled the user";
-                                        label1.BackColor = Color.Lime;
+                                        label1.BackColor = Color.FromArgb(46, 204, 113);
                                         string img1 = Convert.ToBase64String(RegTmps[0]);
                                         string img2 = Convert.ToBase64String(RegTmps[1]);
                                         string img3 = Convert.ToBase64String(RegTmps[2]);
@@ -255,18 +239,18 @@ namespace Finger
                                         sw.WriteLine(img3);
                                         sw.WriteLine(iFid);
                                         sw.WriteLine(Environment.NewLine);
-                                        sw.Close();                                        
+                                        sw.Close();
                                     }
                                     else
                                     {
                                         label1.Text = "Failed to add the users template " + ret;
-                                        label1.BackColor = Color.Tomato;
+                                        label1.BackColor = Color.FromArgb(231, 76, 60);
                                     }
                                 }
                                 else
                                 {
                                     label1.Text = "Unable to enroll the current user. " + ret;
-                                    label1.BackColor = Color.Tomato;
+                                    label1.BackColor = Color.FromArgb(231, 76, 60);
                                 }
 
                                 IsRegister = false;
@@ -276,7 +260,7 @@ namespace Finger
                             {
                                 int remainingCont = REGISTER_FINGER_COUNT - RegisterCount;
                                 label1.Text = "Please provide your fingerprint " + remainingCont + " more time(s)";
-                                label1.BackColor = Color.LightBlue;
+                                label1.BackColor = Color.FromArgb(41, 128, 185);
                             }
                             #endregion
                         }
@@ -288,7 +272,7 @@ namespace Finger
                             if (regTempLen <= 0)
                             {
                                 label1.Text = "Un-identified fingerprint. Please enroll to register.";
-                                label1.BackColor = Color.Tomato;
+                                label1.BackColor = Color.FromArgb(231, 76, 60);
                                 return;
                             }
 
@@ -300,13 +284,13 @@ namespace Finger
                                 if (zkfp.ZKFP_ERR_OK == ret)
                                 {
                                     label1.Text = "User Validated. Score: " + score + "ID: " + fid;
-                                    label1.BackColor = Color.Lime;
+                                    label1.BackColor = Color.FromArgb(46, 204, 113);
                                     return;
                                 }
                                 else
                                 {
-                                    label1.Text = "Identification Failed. Score: "+ ret;
-                                    label1.BackColor = Color.Tomato;
+                                    label1.Text = "Identification Failed. Score: " + ret;
+                                    label1.BackColor = Color.FromArgb(231, 76, 60);
                                     return;
                                 }
                             }
@@ -316,13 +300,13 @@ namespace Finger
                                 if (0 < ret)
                                 {
                                     label1.Text = "Match Successfull. Score: " + ret;
-                                    label1.BackColor = Color.Tomato;
+                                    label1.BackColor = Color.FromArgb(231, 76, 60);
                                     return;
                                 }
                                 else
                                 {
                                     label1.Text = "Match Failed. Score: " + ret;
-                                    label1.BackColor = Color.Tomato;
+                                    label1.BackColor = Color.FromArgb(231, 76, 60);
                                     return;
                                 }
                             }
@@ -335,12 +319,6 @@ namespace Finger
                     base.DefWndProc(ref m);
                     break;
             }
-        }
-
-        public object PushToDevice(object args)
-        {
-            MessageBox.Show("Pushed to fingerprint !", "PumaTime", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return null;
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -376,29 +354,13 @@ namespace Finger
                     {
                         Cursor = Cursors.Default;
                         label1.Text = "Error Disconnecting the Device " + iFid;
-                        label1.BackColor = Color.Red;
+                        label1.BackColor = Color.FromArgb(231, 76, 60);
                     }
                 }
                 label1.Text = "Device Disconnected";
-                label1.BackColor = Color.Tomato;
+                label1.BackColor = Color.FromArgb(231, 76, 60);
             }
             Cursor = Cursors.Default;
-        }
-
-        public void ClearDeviceUser()
-        {
-            try
-            {
-                int deleteCode = fpr.DelRegTemplate(iFid);   // <---- REMOVE FINGERPRINT
-                if (deleteCode != zkfp.ZKFP_ERR_OK)
-                {
-                    label1.Text = "Unabled to clear finger print "+ iFid;
-                    label1.BackColor = Color.Tomato;
-                }
-                iFid = 1;
-            }
-            catch { }
-
         }
 
         private void ClearImage()
@@ -412,305 +374,100 @@ namespace Finger
             timer1.Dispose();
             if (fpr.GetDeviceCount() > 0)
             {
+                ClearImage();
                 label1.Text = "Device Connected";
-                label1.BackColor = Color.Lime;
+                label1.BackColor = Color.FromArgb(46, 204, 113);
             }
             else
             {
                 label1.Text = " No Device Connected";
-                label1.BackColor = Color.Tomato;
+                label1.BackColor = Color.FromArgb(231, 76, 60);
             }
             timer1.Start();
         }
 
+
+
         private int GenerateRegisteredFingerPrint()
-        {            
+        {
             return fpr.GenerateRegTemplate(RegTmps[0], RegTmps[1], RegTmps[2], RegTmp, ref regTempLen);
         }
-
         private int AddTemplateToMemory()
-        {            
+        {
             return fpr.AddRegTemplate(iFid, RegTmp);
         }
 
-        private void DisplayFingerPrintImage()
-        {
-            MemoryStream ms = new MemoryStream();
-            GetBitmap(FPBuffer, mfpWidth, mfpHeight, ref ms);
-            WriteBitmap(FPBuffer, mfpWidth, mfpHeight);
-            Bitmap bmp = new Bitmap(ms);
-            this.picFPImg.Image = bmp;
-
-            Image img = bmp;
-            img.Save(@"D:\finger.bmp", System.Drawing.Imaging.ImageFormat.Bmp) ;
-            FileInfo img1 = new FileInfo(@"D:\finger.bmp");
-            // string finger = ;
-        }
-
-        public struct BITMAPFILEHEADER
-        {
-            public ushort bfType;
-            public int bfSize;
-            public ushort bfReserved1;
-            public ushort bfReserved2;
-            public int bfOffBits;
-        }
-
-        public struct MASK
-        {
-            public byte redmask;
-            public byte greenmask;
-            public byte bluemask;
-            public byte rgbReserved;
-        }
-
-        public struct BITMAPINFOHEADER
-        {
-            public int biSize;
-            public int biWidth;
-            public int biHeight;
-            public ushort biPlanes;
-            public ushort biBitCount;
-            public int biCompression;
-            public int biSizeImage;
-            public int biXPelsPerMeter;
-            public int biYPelsPerMeter;
-            public int biClrUsed;
-            public int biClrImportant;
-        }
-
-        public static void RotatePic(byte[] BmpBuf, int width, int height, ref byte[] ResBuf)
-        {
-            int RowLoop = 0;
-            int ColLoop = 0;
-            int BmpBuflen = width * height;
-
-            try
-            {
-                for (RowLoop = 0; RowLoop < BmpBuflen;)
-                {
-                    for (ColLoop = 0; ColLoop < width; ColLoop++)
-                    {
-                        ResBuf[RowLoop + ColLoop] = BmpBuf[BmpBuflen - RowLoop - width + ColLoop];
-                    }
-
-                    RowLoop = RowLoop + width;
-                }
-            }
-            catch (Exception ex)
-            {
-                //ZKCE.SysException.ZKCELogger logger = new ZKCE.SysException.ZKCELogger(ex);
-                //logger.Append();
-            }
-        }
-
-        public static byte[] StructToBytes(object StructObj, int Size)
-        {
-            int StructSize = Marshal.SizeOf(StructObj);
-            byte[] GetBytes = new byte[StructSize];
-
-            try
-            {
-                IntPtr StructPtr = Marshal.AllocHGlobal(StructSize);
-                Marshal.StructureToPtr(StructObj, StructPtr, false);
-                Marshal.Copy(StructPtr, GetBytes, 0, StructSize);
-                Marshal.FreeHGlobal(StructPtr);
-
-                if (Size == 14)
-                {
-                    byte[] NewBytes = new byte[Size];
-                    int Count = 0;
-                    int Loop = 0;
-
-                    for (Loop = 0; Loop < StructSize; Loop++)
-                    {
-                        if (Loop != 2 && Loop != 3)
-                        {
-                            NewBytes[Count] = GetBytes[Loop];
-                            Count++;
-                        }
-                    }
-
-                    return NewBytes;
-                }
-                else
-                {
-                    return GetBytes;
-                }
-            }
-            catch (Exception ex)
-            {
-                //ZKCE.SysException.ZKCELogger logger = new ZKCE.SysException.ZKCELogger(ex);
-                //logger.Append();
-
-                return GetBytes;
-            }
-        }
-
-        public static void GetBitmap(byte[] buffer, int nWidth, int nHeight, ref MemoryStream ms)
-        {
-            int ColorIndex = 0;
-            ushort m_nBitCount = 8;
-            int m_nColorTableEntries = 256;
-            byte[] ResBuf = new byte[nWidth * nHeight * 2];
-
-            try
-            {
-                BITMAPFILEHEADER BmpHeader = new BITMAPFILEHEADER();
-                BITMAPINFOHEADER BmpInfoHeader = new BITMAPINFOHEADER();
-                MASK[] ColorMask = new MASK[m_nColorTableEntries];
-
-                int w = (((nWidth + 3) / 4) * 4);
-
-                //Í¼Æ¬Í·ÐÅÏ¢
-                BmpInfoHeader.biSize = Marshal.SizeOf(BmpInfoHeader);
-                BmpInfoHeader.biWidth = nWidth;
-                BmpInfoHeader.biHeight = nHeight;
-                BmpInfoHeader.biPlanes = 1;
-                BmpInfoHeader.biBitCount = m_nBitCount;
-                BmpInfoHeader.biCompression = 0;
-                BmpInfoHeader.biSizeImage = 0;
-                BmpInfoHeader.biXPelsPerMeter = 0;
-                BmpInfoHeader.biYPelsPerMeter = 0;
-                BmpInfoHeader.biClrUsed = m_nColorTableEntries;
-                BmpInfoHeader.biClrImportant = m_nColorTableEntries;
-
-                //ÎÄ¼þÍ·ÐÅÏ¢
-                BmpHeader.bfType = 0x4D42;
-                BmpHeader.bfOffBits = 14 + Marshal.SizeOf(BmpInfoHeader) + BmpInfoHeader.biClrUsed * 4;
-                BmpHeader.bfSize = BmpHeader.bfOffBits + ((((w * BmpInfoHeader.biBitCount + 31) / 32) * 4) * BmpInfoHeader.biHeight);
-                BmpHeader.bfReserved1 = 0;
-                BmpHeader.bfReserved2 = 0;
-
-                ms.Write(StructToBytes(BmpHeader, 14), 0, 14);
-                ms.Write(StructToBytes(BmpInfoHeader, Marshal.SizeOf(BmpInfoHeader)), 0, Marshal.SizeOf(BmpInfoHeader));                
-
-                //µ÷ÊÔ°åÐÅÏ¢
-                for (ColorIndex = 0; ColorIndex < m_nColorTableEntries; ColorIndex++)
-                {
-                    ColorMask[ColorIndex].redmask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].greenmask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].bluemask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].rgbReserved = 0;
-
-                    ms.Write(StructToBytes(ColorMask[ColorIndex], Marshal.SizeOf(ColorMask[ColorIndex])), 0, Marshal.SizeOf(ColorMask[ColorIndex]));
-                }
-
-                //Í¼Æ¬Ðý×ª£¬½â¾öÖ¸ÎÆÍ¼Æ¬µ¹Á¢µÄÎÊÌâ
-                RotatePic(buffer, nWidth, nHeight, ref ResBuf);
-
-                byte[] filter = null;
-                if (w - nWidth > 0)
-                {
-                    filter = new byte[w - nWidth];
-                }
-                for (int i = 0; i < nHeight; i++)
-                {
-                    ms.Write(ResBuf, i * nWidth, nWidth);
-                    if (w - nWidth > 0)
-                    {
-                        ms.Write(ResBuf, 0, w - nWidth);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // ZKCE.SysException.ZKCELogger logger = new ZKCE.SysException.ZKCELogger(ex);
-                // logger.Append();
-            }
-        }
-
-        public static void WriteBitmap(byte[] buffer, int nWidth, int nHeight)
-        {
-            int ColorIndex = 0;
-            ushort m_nBitCount = 8;
-            int m_nColorTableEntries = 256;
-            byte[] ResBuf = new byte[nWidth * nHeight];
-
-            try
-            {
-
-                BITMAPFILEHEADER BmpHeader = new BITMAPFILEHEADER();
-                BITMAPINFOHEADER BmpInfoHeader = new BITMAPINFOHEADER();
-                MASK[] ColorMask = new MASK[m_nColorTableEntries];
-                int w = (((nWidth + 3) / 4) * 4);
-                //Í¼Æ¬Í·ÐÅÏ¢
-                BmpInfoHeader.biSize = Marshal.SizeOf(BmpInfoHeader);
-                BmpInfoHeader.biWidth = nWidth;
-                BmpInfoHeader.biHeight = nHeight;
-                BmpInfoHeader.biPlanes = 1;
-                BmpInfoHeader.biBitCount = m_nBitCount;
-                BmpInfoHeader.biCompression = 0;
-                BmpInfoHeader.biSizeImage = 0;
-                BmpInfoHeader.biXPelsPerMeter = 0;
-                BmpInfoHeader.biYPelsPerMeter = 0;
-                BmpInfoHeader.biClrUsed = m_nColorTableEntries;
-                BmpInfoHeader.biClrImportant = m_nColorTableEntries;
-
-                //ÎÄ¼þÍ·ÐÅÏ¢
-                BmpHeader.bfType = 0x4D42;
-                BmpHeader.bfOffBits = 14 + Marshal.SizeOf(BmpInfoHeader) + BmpInfoHeader.biClrUsed * 4;
-                BmpHeader.bfSize = BmpHeader.bfOffBits + ((((w * BmpInfoHeader.biBitCount + 31) / 32) * 4) * BmpInfoHeader.biHeight);
-                BmpHeader.bfReserved1 = 0;
-                BmpHeader.bfReserved2 = 0;
-
-                Stream FileStream = File.Open("finger.bmp", FileMode.Create, FileAccess.Write);
-                BinaryWriter TmpBinaryWriter = new BinaryWriter(FileStream);                
-
-                TmpBinaryWriter.Write(StructToBytes(BmpHeader, 14));
-                TmpBinaryWriter.Write(StructToBytes(BmpInfoHeader, Marshal.SizeOf(BmpInfoHeader)));
-
-                //µ÷ÊÔ°åÐÅÏ¢
-                for (ColorIndex = 0; ColorIndex < m_nColorTableEntries; ColorIndex++)
-                {
-                    ColorMask[ColorIndex].redmask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].greenmask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].bluemask = (byte)ColorIndex;
-                    ColorMask[ColorIndex].rgbReserved = 0;
-
-                    TmpBinaryWriter.Write(StructToBytes(ColorMask[ColorIndex], Marshal.SizeOf(ColorMask[ColorIndex])));
-                }
-
-                //Í¼Æ¬Ðý×ª£¬½â¾öÖ¸ÎÆÍ¼Æ¬µ¹Á¢µÄÎÊÌâ
-                RotatePic(buffer, nWidth, nHeight, ref ResBuf);
-
-                //Ð´Í¼Æ¬
-                //TmpBinaryWriter.Write(ResBuf);
-                byte[] filter = null;
-                if (w - nWidth > 0)
-                {
-                    filter = new byte[w - nWidth];
-                }
-                for (int i = 0; i < nHeight; i++)
-                {
-                    TmpBinaryWriter.Write(ResBuf, i * nWidth, nWidth);
-                    if (w - nWidth > 0)
-                    {
-                        TmpBinaryWriter.Write(ResBuf, 0, w - nWidth);
-                    }
-                }
-
-                FileStream.Close();
-                TmpBinaryWriter.Close();
-            }
-            catch (Exception ex)
-            {
-                //ZKCE.SysException.ZKCELogger logger = new ZKCE.SysException.ZKCELogger(ex);
-                //logger.Append();
-            }
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            StreamReader sr = new StreamReader(@"D:\Fingers.txt");
-            string finger = sr.ReadLine();
-            RegTmp = Convert.FromBase64String(finger);
-            DisplayFingerPrintImage();
-            GenerateRegisteredFingerPrint();
-            AddTemplateToMemory();
-            RegTmp = new byte[2048];
-            sr.Close();
-        }
         
+
+
+ 
+        #region ------MenuStrip Items-------
+
+        public void enrollEmployeeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bool isOpen = false;
+            foreach (Form f in Application.OpenForms)
+            {
+                if (f.Text == "Enroll")
+                {
+                    isOpen = true;
+                    f.Focus();
+                    break;
+                }
+            }
+            if (isOpen == false)
+            {
+                enroll.MdiParent = this;
+                enroll.Show();
+            }
+        }
+
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OnDisconnect();
+            Application.Exit();
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bool openchild = false;
+
+            if (!MdiChildren.Any())
+            {
+                openchild = true;
+            }
+            else
+                this.ActiveMdiChild.Close();
+        }
+
+        public string LabelText
+        {
+            get
+            {
+                return label1.Text;
+            }
+            set
+            {
+                label1.Text = value;
+            }
+        }
+
+        public void LabelColor(Color color)
+        {
+            label1.BackColor = color;
+        }
+
+        private void employeesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            employeesToolStripMenuItem.BackColor = Color.FromArgb(38, 111, 153);
+            employeesToolStripMenuItem.ForeColor = Color.Black;
+        }
+
+        private void employeesToolStripMenuItem_MouseLeave(object sender, EventArgs e)
+        {
+            employeesToolStripMenuItem.BackColor = Color.FromArgb(38, 111, 153);
+            employeesToolStripMenuItem.ForeColor = Color.White;
+        }
+        #endregion
     }
 }
